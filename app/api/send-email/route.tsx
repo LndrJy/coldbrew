@@ -2,21 +2,37 @@ import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 type SendEmailPayload = {
   to: string
   companyId: string
-  companyName: string
   subject: string
   body: string
   attachment?: { name: string; content: string } | null
 }
 
+type ResendEmailPayload = {
+  from: string
+  to: string[]
+  subject: string
+  html: string
+  attachments?: Array<{
+    filename: string
+    content: string
+  }>
+}
+
 export async function POST(request: Request) {
   try {
+    const resendApiKey = process.env.RESEND_API_KEY
+    if (!resendApiKey) {
+      return NextResponse.json({ error: 'Missing RESEND_API_KEY environment variable' }, { status: 500 })
+    }
+
+    const resend = new Resend(resendApiKey)
+
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json({ error: 'Supabase environment variables are missing' }, { status: 500 })
     }
@@ -39,10 +55,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid user session' }, { status: 401 })
     }
 
-    const { to, companyId, companyName, subject, body, attachment } = (await request.json()) as SendEmailPayload
+    const { to, companyId, subject, body, attachment } = (await request.json()) as SendEmailPayload
 
     // 1. Send the email via Resend
-    const emailPayload: any = {
+    const emailPayload: ResendEmailPayload = {
       from: 'ColdBrew OJT <onboarding@resend.dev>',
       to: [to],
       subject: subject,
