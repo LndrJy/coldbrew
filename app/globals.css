@@ -1,56 +1,156 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,900&family=Archivo+Black&family=Space+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #f5f5f4;
-  --foreground: #0f766e;
+  --background: #F4F0E6;
+  --foreground: #0F4C3A;
+  --ink: #0F4C3A;
+  --accent: #0F4C3A;
+  --panel: #EBE5D9;
+  --line-w: 2px;
+  --shadow-offset: 4px;
+  --font-serif: 'Fraunces', serif;
+  --font-sans-bold: 'Archivo Black', sans-serif;
+  --font-mono: 'Space Mono', monospace;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-mono);
 }
 
 .lento-shell {
-  @apply min-h-screen bg-stone-100 text-teal-900;
+  min-height: 100vh;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 .lento-card {
-  @apply rounded-3xl border-2 border-teal-900/10 bg-white/90 shadow-sm;
+  border: var(--line-w) solid var(--ink);
+  background: var(--background);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
+}
+
+.lento-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: calc(var(--shadow-offset) + 1px) calc(var(--shadow-offset) + 1px) 0 var(--ink);
 }
 
 .lento-title {
-  @apply font-black tracking-tight text-teal-900;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+  font-family: var(--font-serif);
+  font-size: 2.5rem;
+  font-weight: 900;
 }
 
 .lento-subtitle {
-  @apply text-sm font-medium text-teal-800/70;
+  color: color-mix(in srgb, var(--ink) 70%, transparent);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .lento-button {
-  @apply rounded-xl bg-teal-800 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-teal-700;
+  border: var(--line-w) solid var(--ink);
+  background: var(--accent);
+  color: var(--background);
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  font-family: var(--font-sans-bold);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
+}
+
+.lento-button:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: calc(var(--shadow-offset) + 1px) calc(var(--shadow-offset) + 1px) 0 var(--ink);
 }
 
 .lento-button-ghost {
-  @apply rounded-xl border border-teal-900/20 bg-stone-50 px-4 py-2 text-sm font-semibold text-teal-900 transition-colors hover:bg-stone-200;
+  border: var(--line-w) solid var(--ink);
+  background: var(--background);
+  color: var(--ink);
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  font-family: var(--font-sans-bold);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
+}
+
+.lento-button-ghost:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: calc(var(--shadow-offset) + 1px) calc(var(--shadow-offset) + 1px) 0 var(--ink);
 }
 
 .lento-pill {
-  @apply rounded-full border border-teal-900/20 bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-900;
+  border: var(--line-w) solid var(--ink);
+  background: var(--background);
+  color: var(--ink);
+  padding: 0.15rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-sans-bold);
+}
+
+/* Custom checkbox styling */
+.neo-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: var(--line-w) solid var(--ink);
+  background: var(--background);
+  cursor: pointer;
+  box-shadow: 2px 2px 0 var(--ink);
+  transition: all 0.1s;
+}
+
+.neo-checkbox:checked {
+  background: var(--accent);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+
+.neo-checkbox:checked::after {
+  content: '✕';
+  color: var(--background);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Input and textarea styling */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+textarea,
+select {
+  border: var(--line-w) solid var(--ink) !important;
+  background: var(--panel) !important;
+  color: var(--ink) !important;
+  font-family: var(--font-mono) !important;
+  box-shadow: 0 0 0 transparent !important;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="date"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  box-shadow: 0 0 0 transparent !important;
 }
 
 @keyframes lento-shake {
@@ -92,33 +192,200 @@ body {
 }
 
 :root.theme-dark {
-  --background: #020617;
-  --foreground: #e2e8f0;
+  --background: #1A1918;
+  --foreground: #D2C4A7;
+  --ink: #D2C4A7;
+  --accent: #D95A2B;
+  --panel: #232120;
 }
 
 :root.theme-dark .lento-shell {
-  background: #020617;
-  color: #e2e8f0;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 :root.theme-dark .lento-card {
-  background: rgba(15, 23, 42, 0.85);
-  border-color: rgba(148, 163, 184, 0.35);
+  background: var(--background);
+  border-color: var(--ink);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--ink);
 }
 
 :root.theme-dark .lento-title {
-  color: #f8fafc;
+  color: var(--ink);
 }
 
 :root.theme-dark .lento-subtitle {
-  color: rgba(226, 232, 240, 0.72);
+  color: color-mix(in srgb, var(--ink) 72%, transparent);
+}
+
+:root.theme-dark .lento-button {
+  background: var(--accent);
+  color: var(--ink);
+}
+
+:root.theme-dark .lento-button-ghost {
+  background: var(--background);
+  color: var(--ink);
+}
+
+:root.theme-dark input[type="text"],
+:root.theme-dark input[type="email"],
+:root.theme-dark input[type="password"],
+:root.theme-dark input[type="date"],
+:root.theme-dark textarea,
+:root.theme-dark select {
+  background: var(--panel) !important;
+  color: var(--ink) !important;
 }
 
 :root.theme-high-contrast .lento-card {
-  border-color: #0f172a;
-  border-width: 3px;
+  border-width: calc(var(--line-w) + 1px);
 }
 
 :root.theme-large-text {
   font-size: 18px;
+}
+
+/* Loaders */
+.loader-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--background);
+}
+
+.coffee-loader svg,
+.folder-loader svg {
+  display: block;
+}
+
+.ink-stroke {
+  stroke: var(--ink);
+  stroke-width: var(--line-w);
+  fill: none;
+  shape-rendering: crispEdges;
+}
+
+.ink-fill {
+  fill: var(--accent);
+}
+
+@keyframes coffee-stream {
+  0%,
+  14% {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  18%,
+  72% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+  78%,
+  100% {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+}
+
+@keyframes coffee-fill {
+  0%,
+  12% {
+    transform: scaleY(0.02);
+  }
+  70% {
+    transform: scaleY(1);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes star-pop {
+  0%,
+  50%,
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  58%,
+  74% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  82% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+@keyframes paper-drop {
+  0% {
+    transform: translateY(-26px);
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  58%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes folder-catch {
+  0%,
+  42%,
+  100% {
+    transform: translateY(0);
+  }
+  48% {
+    transform: translateY(1px);
+  }
+  56% {
+    transform: translateY(-2px);
+  }
+  66% {
+    transform: translateY(0);
+  }
+}
+
+.coffee-stream {
+  transform-origin: center top;
+  animation: coffee-stream 2.1s ease-in-out infinite;
+}
+
+.coffee-fill {
+  transform-origin: center bottom;
+  animation: coffee-fill 2.1s ease-in-out infinite;
+}
+
+.star-1 {
+  animation: star-pop 2.1s ease-in-out infinite;
+}
+
+.star-2 {
+  animation: star-pop 2.1s ease-in-out 0.18s infinite;
+}
+
+.star-3 {
+  animation: star-pop 2.1s ease-in-out 0.36s infinite;
+}
+
+.folder-bounce {
+  transform-origin: center bottom;
+  animation: folder-catch 2.4s ease-in-out infinite;
+}
+
+.paper-1 {
+  animation: paper-drop 2.4s ease-in-out infinite;
+}
+
+.paper-2 {
+  animation: paper-drop 2.4s ease-in-out 0.36s infinite;
+}
+
+.paper-3 {
+  animation: paper-drop 2.4s ease-in-out 0.72s infinite;
 }

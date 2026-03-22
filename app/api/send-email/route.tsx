@@ -6,15 +6,13 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-// Server-side Supabase client
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
 type SendEmailPayload = {
   to: string
-  companyId: number
+  companyId: string
   companyName: string
   subject: string
   body: string
+  attachment?: { name: string; content: string } | null
 }
 
 export async function POST(request: Request) {
@@ -23,10 +21,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Supabase environment variables are missing' }, { status: 500 })
     }
 
-    const { to, companyId, companyName, subject, body } = (await request.json()) as SendEmailPayload
+    const authHeader = request.headers.get('authorization') || ''
+    if (!authHeader.toLowerCase().startsWith('bearer ')) {
+      return NextResponse.json({ error: 'Missing authorization token' }, { status: 401 })
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser()
+
+    if (userError || !user) {
+      return NextResponse.json({ error: 'Invalid user session' }, { status: 401 })
+    }
+
+    const { to, companyId, companyName, subject, body, attachment } = (await request.json()) as SendEmailPayload
 
     // 1. Send the email via Resend
-    const { data, error } = await resend.emails.send({
+    const emailPayload: any = {
       from: 'ColdBrew OJT <onboarding@resend.dev>',
       to: [to],
       subject: subject,
@@ -38,7 +54,16 @@ export async function POST(request: Request) {
           <p style="color: #6b7280; font-size: 12px;">Sent via ColdBrew ☕</p>
         </div>
       `,
-    })
+    }
+
+    if (attachment) {
+      emailPayload.attachments = [{
+        filename: attachment.name,
+        content: attachment.content.split(',')[1] || attachment.content,
+      }]
+    }
+
+    const { data, error } = await resend.emails.send(emailPayload)
 
     if (error) {
       return NextResponse.json({ error }, { status: 400 })
@@ -47,9 +72,11 @@ export async function POST(request: Request) {
     // 2. Log the email in Supabase
     await supabase.from('emails').insert({
       company_id: companyId,
+      owner_id: user.id,
       subject: subject,
       body: body,
       resend_email_id: data?.id || null,
+      has_attachment: !!attachment,
     })
 
     // 3. Update company status to 'sent'
@@ -57,6 +84,7 @@ export async function POST(request: Request) {
       .from('companies')
       .update({ status: 'sent', updated_at: new Date().toISOString() })
       .eq('id', companyId)
+      .eq('owner_id', user.id)
 
     return NextResponse.json({ success: true, emailId: data?.id }, { status: 200 })
 

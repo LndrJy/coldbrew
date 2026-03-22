@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import * as XLSX from 'xlsx'
 import { supabase } from '@/lib/supabase'
+import FolderImportLoader from '../components/FolderImportLoader'
 
 type PreviewRow = Record<string, unknown>
 
 export default function ImportPage() {
   const router = useRouter()
   const [authLoading, setAuthLoading] = useState(true)
+  const [currentUserId, setCurrentUserId] = useState('')
   const [selectedProgramKey, setSelectedProgramKey] = useState('')
   const [previewData, setPreviewData] = useState<PreviewRow[]>([])
   const [fileName, setFileName] = useState('')
@@ -23,6 +25,7 @@ export default function ImportPage() {
       } = await supabase.auth.getSession()
 
       if (!session) router.replace('/auth')
+      else setCurrentUserId(session.user.id)
       setAuthLoading(false)
     }
 
@@ -76,7 +79,8 @@ export default function ImportPage() {
 
   if (authLoading) {
     return (
-      <main className="lento-shell flex items-center justify-center">
+      <main className="lento-shell flex flex-col items-center justify-center gap-4">
+        <FolderImportLoader size={150} />
         <p className="lento-subtitle">Loading import workspace...</p>
       </main>
     )
@@ -111,6 +115,11 @@ export default function ImportPage() {
 
   // Runs when user clicks Import button
   async function handleImport() {
+    if (!currentUserId) {
+      setMessage('❌ You must be logged in to import data.')
+      return
+    }
+
     const rowsToImport = previewData.filter((row) => {
       if (!selectedProgramKey) return true
       const normalized = normalizeProgramValue(getProgramsOfferedValue(row))
@@ -137,6 +146,7 @@ export default function ImportPage() {
       effectivity_date: String(row['Effectivity Date'] || ''),
       moa_status: String(row['MOA Status'] || ''),
       status: 'pending',
+      owner_id: currentUserId,
     }))
 
     const { error } = await supabase.from('companies').insert(rows)
@@ -157,38 +167,38 @@ export default function ImportPage() {
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">☕ Import Companies</h1>
-          <p className="text-gray-500 mt-1">Upload your Excel file to get started</p>
+          <h1 className="lento-title text-3xl">☕ Import Companies</h1>
+          <p className="lento-subtitle mt-1">Upload your Excel file to get started</p>
         </div>
 
         {/* Upload Card */}
-        <div className="bg-white rounded-2xl shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">1. Upload Excel File</h2>
+        <div className="lento-card p-6 mb-6">
+          <h2 className="mb-4 text-lg font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>1. Upload Excel File</h2>
 
           <input
             type="file"
             accept=".xlsx, .xls"
             onChange={handleFileUpload}
-            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4
-              file:rounded-full file:border-0 file:text-sm file:font-semibold
-              file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            className="block w-full text-sm text-[var(--ink)]/70 file:mr-4 file:px-4 file:py-2
+              file:border file:border-[var(--ink)] file:bg-[var(--background)] file:text-sm file:font-bold file:text-[var(--ink)]"
+            style={{ fontFamily: 'Space Mono' }}
           />
 
           {fileName && (
-            <p className="mt-2 text-sm text-green-600 font-medium">📄 {fileName} loaded</p>
+            <p className="mt-2 text-sm font-medium text-[var(--accent)]">📄 {fileName} loaded</p>
           )}
         </div>
 
         {/* Program Selector */}
-        <div className="bg-white rounded-2xl shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">2. Filter by Program Offered</h2>
+        <div className="lento-card p-6 mb-6">
+          <h2 className="mb-4 text-lg font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>2. Filter by Program Offered</h2>
 
           <div className="mb-4">
-            <label className="mb-1 block text-sm font-semibold text-gray-700">Program Offered Filter (optional)</label>
+            <label className="mb-1 block text-sm font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>Program Offered Filter (optional)</label>
             <select
               value={selectedProgramKey}
               onChange={(e) => setSelectedProgramKey(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full px-4 py-2"
               disabled={programOptions.length === 0}
             >
               <option value="">All Programs</option>
@@ -203,13 +213,13 @@ export default function ImportPage() {
 
         {/* Preview Table */}
         {previewData.length > 0 && (
-          <div className="bg-white rounded-2xl shadow p-6 mb-6 overflow-x-auto">
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">
+          <div className="lento-card p-6 mb-6 overflow-x-auto">
+            <h2 className="mb-4 text-lg font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>
               3. Preview ({filteredPreviewData.length} of {previewData.length} rows)
             </h2>
 
-            <table className="w-full text-sm text-left text-gray-600">
-              <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
+            <table className="w-full text-left text-sm text-[var(--ink)]">
+              <thead className="uppercase text-xs text-[var(--ink)]/75" style={{ backgroundColor: 'var(--panel)' }}>
                 <tr>
                   {Object.keys(previewData[0]).map((col) => (
                     <th key={col} className="px-4 py-2">{col}</th>
@@ -218,7 +228,7 @@ export default function ImportPage() {
               </thead>
               <tbody>
                 {filteredPreviewData.slice(0, 5).map((row, i) => (
-                  <tr key={i} className="border-t">
+                  <tr key={i} className="border-t border-[var(--ink)]/20">
                     {Object.values(row).map((val, j) => (
                       <td key={j} className="px-4 py-2">{String(val ?? '')}</td>
                     ))}
@@ -228,7 +238,7 @@ export default function ImportPage() {
             </table>
 
             {filteredPreviewData.length > 5 && (
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="mt-2 text-xs text-[var(--ink)]/55">
                 Showing first 5 of {filteredPreviewData.length} rows
               </p>
             )}
@@ -244,11 +254,16 @@ export default function ImportPage() {
         <button
           onClick={handleImport}
           disabled={importing || filteredPreviewData.length === 0}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300
-            text-white font-bold py-3 rounded-xl transition-colors"
+          className="w-full lento-button py-3 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {importing ? 'Importing...' : `Import ${filteredPreviewData.length} Companies`}
         </button>
+
+        {importing && (
+          <div className="mt-4 flex justify-center">
+            <FolderImportLoader size={130} />
+          </div>
+        )}
 
       </div>
     </main>

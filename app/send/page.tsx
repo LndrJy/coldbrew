@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
@@ -10,7 +10,7 @@ type Category = {
 }
 
 type Company = {
-  id: number
+  id: string
   company_name: string
   email: string
   category_id: number | null
@@ -49,13 +49,27 @@ export default function SendEmailPage() {
   const [authLoading, setAuthLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState('')
   const [companies, setCompanies] = useState<Company[]>([])
-  const [selectedCompanies, setSelectedCompanies] = useState<number[]>([])
+  const [selectedCompanies, setSelectedCompanies] = useState<string[]>([])
+  const [accessToken, setAccessToken] = useState('')
   const [subject, setSubject] = useState(DEFAULT_SUBJECT)
   const [body, setBody] = useState(DEFAULT_BODY)
   const [sending, setSending] = useState(false)
   const [results, setResults] = useState<SendResult[]>([])
   const [filterCategory, setFilterCategory] = useState('')
   const [categories, setCategories] = useState<Category[]>([])
+  const [attachedFile, setAttachedFile] = useState<{ name: string; content: string } | null>(null)
+
+  const fetchData = useCallback(async () => {
+    const { data: cats } = await supabase.from('categories').select('*')
+    setCategories((cats as Category[]) || [])
+
+    const { data: comps } = await supabase
+      .from('companies')
+      .select('*, categories(name)')
+      .eq('owner_id', currentUserId)
+      .eq('status', 'pending')
+    setCompanies((comps as Company[]) || [])
+  }, [currentUserId])
 
   useEffect(() => {
     async function checkSession() {
@@ -64,7 +78,10 @@ export default function SendEmailPage() {
       } = await supabase.auth.getSession()
 
       if (!session) router.replace('/auth')
-      else setCurrentUserId(session.user.id)
+      else {
+        setCurrentUserId(session.user.id)
+        setAccessToken(session.access_token)
+      }
       setAuthLoading(false)
     }
 
@@ -73,8 +90,12 @@ export default function SendEmailPage() {
 
   useEffect(() => {
     if (authLoading || !currentUserId) return
-    fetchData()
-  }, [authLoading, currentUserId])
+    const timer = window.setTimeout(() => {
+      void fetchData()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [authLoading, currentUserId, fetchData])
 
   if (authLoading) {
     return (
@@ -84,23 +105,12 @@ export default function SendEmailPage() {
     )
   }
 
-  async function fetchData() {
-    const { data: cats } = await supabase.from('categories').select('*')
-    setCategories((cats as Category[]) || [])
-
-    const { data: comps } = await supabase
-      .from('companies')
-      .select('*, categories(name)')
-      .eq('status', 'pending')  // only show pending companies
-    setCompanies((comps as Company[]) || [])
-  }
-
   // Filter companies by category
   const filtered = filterCategory
     ? companies.filter((c) => String(c.category_id) === filterCategory)
     : companies
 
-  function toggleSelect(id: number) {
+  function toggleSelect(id: string) {
     setSelectedCompanies((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
@@ -131,7 +141,10 @@ export default function SendEmailPage() {
 
       const res = await fetch('/api/send-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           to: company.email.trim(),
           companyId: company.id,
@@ -139,6 +152,7 @@ export default function SendEmailPage() {
           companyName: company.company_name,
           subject,
           body: personalizedBody,
+          attachment: attachedFile,
         }),
       })
 
@@ -173,14 +187,12 @@ export default function SendEmailPage() {
       <div className="max-w-5xl mx-auto">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">☕ Send Emails</h1>
-            <p className="text-gray-500 mt-1">Compose and send OJT applications</p>
-          </div>
+        <div className="mb-8">
+          <h1 className="lento-title mb-2">☕ SEND EMAILS</h1>
+          <p className="lento-subtitle">Compose email and send applications</p>
           <button
             onClick={() => router.push('/')}
-            className="text-sm text-blue-600 hover:underline"
+            className="mt-4 lento-button-ghost"
           >
             ← Back to Dashboard
           </button>
@@ -189,16 +201,16 @@ export default function SendEmailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* LEFT: Company Selection */}
-          <div className="bg-white rounded-2xl shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">
-              1. Select Companies ({selectedCompanies.length} selected)
+          <div className="lento-card p-6">
+            <h2 className="mb-4 text-lg font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>
+              1. SELECT COMPANIES ({selectedCompanies.length} selected)
             </h2>
 
             {/* Category Filter */}
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full mb-3 px-3 py-2 text-sm"
             >
               <option value="">All Categories</option>
               {categories.map((cat) => (
@@ -209,36 +221,37 @@ export default function SendEmailPage() {
             {/* Select All */}
             <button
               onClick={toggleSelectAll}
-              className="text-sm text-blue-600 hover:underline mb-3 block"
+              className="lento-button-ghost mb-3 text-sm w-full"
             >
-              {selectedCompanies.length === filtered.length ? 'Deselect All' : 'Select All'}
+              {selectedCompanies.length === filtered.length ? 'DESELECT ALL' : 'SELECT ALL'}
             </button>
 
             {/* Company List */}
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {filtered.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-8">
+                <p className="py-8 text-center text-sm text-[var(--ink)]/60">
                   No pending companies. Import some first!
                 </p>
               ) : (
                 filtered.map((company) => (
                   <label
                     key={company.id}
-                    className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-blue-50 cursor-pointer"
+                    className="flex cursor-pointer items-start gap-3 border-2 border-[var(--ink)] bg-[var(--background)] p-3 transition-all hover:translate-x-1"
+                    style={{ boxShadow: '3px 3px 0px var(--ink)' }}
                   >
                     <input
                       type="checkbox"
                       checked={selectedCompanies.includes(company.id)}
                       onChange={() => toggleSelect(company.id)}
-                      className="mt-1"
+                      className="neo-checkbox mt-1"
                     />
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-800 text-sm truncate">
+                      <p className="truncate text-sm font-bold text-[var(--ink)]" style={{ fontFamily: 'Space Mono' }}>
                         {company.company_name}
                       </p>
-                      <p className="text-gray-400 text-xs truncate">{company.email}</p>
+                      <p className="truncate font-mono text-xs text-[var(--ink)]/60">{company.email}</p>
                       {company.categories?.name && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        <span className="mt-1 inline-block border-2 border-[var(--ink)] px-2 py-1 text-xs font-bold text-[var(--ink)]" style={{ boxShadow: '2px 2px 0px var(--ink)' }}>
                           {company.categories.name}
                         </span>
                       )}
@@ -250,32 +263,87 @@ export default function SendEmailPage() {
           </div>
 
           {/* RIGHT: Email Composer */}
-          <div className="bg-white rounded-2xl shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">2. Compose Email</h2>
+          <div className="lento-card p-6">
+            <h2 className="mb-4 text-lg font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>
+              2. COMPOSE EMAIL
+            </h2>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-600 mb-1">Subject</label>
+              <label className="mb-2 block text-sm font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>
+                Subject
+              </label>
               <input
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full px-3 py-2 text-sm"
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-600 mb-1">
+              <label className="mb-2 block text-sm font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>
                 Body
-                <span className="text-gray-400 font-normal ml-2">
-                  (use [Company Name] to auto-personalize)
-                </span>
               </label>
+              <p className="mb-2 font-mono text-xs text-[var(--ink)]/60">
+                Use [Company Name] to auto-personalize each email
+              </p>
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                rows={14}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+                rows={10}
+                className="w-full px-3 py-2 text-sm font-mono"
               />
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-2 block text-sm font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>
+                Attach Resume (optional)
+              </label>
+              <div className="border-2 border-dashed border-[var(--ink)] p-4 text-center" style={{ backgroundColor: 'var(--background)' }}>
+                {attachedFile ? (
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-bold text-[var(--ink)]" style={{ fontFamily: 'Space Mono' }}>📎 {attachedFile.name}</p>
+                      <p className="mt-1 text-xs text-[var(--ink)]/60">Ready to send with all emails</p>
+                    </div>
+                    <button
+                      onClick={() => setAttachedFile(null)}
+                      className="lento-button-ghost text-sm px-3 py-2"
+                    >
+                      REMOVE FILE
+                    </button>
+                  </div>
+                ) : (
+                  <label className="cursor-pointer">
+                    <p className="text-sm font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>
+                      📁 Click to attach file
+                    </p>
+                    <p className="mt-1 font-mono text-xs text-[var(--ink)]/60">
+                      PDF, DOC, DOCX (max 5MB)
+                    </p>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          if (file.size > 5 * 1024 * 1024) {
+                            alert('File too large. Max 5MB.')
+                            return
+                          }
+                          const reader = new FileReader()
+                          reader.onload = (event) => {
+                            const content = event.target?.result as string
+                            setAttachedFile({ name: file.name, content })
+                          }
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -285,8 +353,11 @@ export default function SendEmailPage() {
           <button
             onClick={handleSendEmails}
             disabled={sending || selectedCompanies.length === 0}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300
-              text-white font-bold py-4 rounded-xl transition-colors text-lg"
+            className={`w-full font-bold py-4 transition-all text-lg lento-button ${
+              sending || selectedCompanies.length === 0
+                ? 'opacity-50 cursor-not-allowed'
+                : ''
+            }`}
           >
             {sending
               ? `Sending... (${results.length}/${selectedCompanies.length})`
@@ -296,16 +367,22 @@ export default function SendEmailPage() {
 
         {/* Results */}
         {results.length > 0 && (
-          <div className="mt-6 bg-white rounded-2xl shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">Results</h2>
-            <div className="space-y-2">
+          <div className="mt-6 lento-card p-6">
+            <h2 className="mb-4 text-lg font-bold text-[var(--ink)]" style={{ fontFamily: 'Archivo Black' }}>
+              SEND RESULTS
+            </h2>
+            <div className="space-y-3">
               {results.map((r, i) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{r.company}</p>
-                    <p className="text-xs text-gray-400">{r.email}</p>
+                <div key={i} className="border-b-2 border-[var(--ink)]/20 py-2">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-bold text-[var(--ink)]" style={{ fontFamily: 'Space Mono' }}>
+                        {r.company}
+                      </p>
+                      <p className="font-mono text-xs text-[var(--ink)]/60">{r.email}</p>
+                    </div>
+                    <span className="text-sm font-bold whitespace-nowrap">{r.message}</span>
                   </div>
-                  <span className="text-sm">{r.message}</span>
                 </div>
               ))}
             </div>
